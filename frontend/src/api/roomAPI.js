@@ -28,4 +28,6 @@ export const roomAPI = {
 
   deleteRoom: (id) => axiosClient.delete(`/api/admin/rooms/${id}`),
   updateRoom: (id, data) => axiosClient.put(`/api/admin/rooms/${id}`, data),
+
+  search: (params) => axiosClient.get('/api/bookings/search', { params }),
 }

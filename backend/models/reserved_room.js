@@ -8,7 +8,7 @@ const reserved_room_schema = new mongoose.Schema({
   },
   room_id: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'room',
+    ref: 'Room',
     required: true,
   },
   check_in: {

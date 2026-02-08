@@ -18,6 +18,9 @@ import Success from './pages/guests/Success'
 import Cancel from './pages/guests/Cancel'
 import MyBookings from './pages/guests/MyBookings'
 import ManageBookings from './pages/admin/ManageBookings'
+import ProfileSettings from './pages/guests/ProfileSettings'
+import StaffDashboard from './pages/staff/StaffDashboard'
+import StaffMaintenance from './pages/staff/StaffMaintenance'
 
 const GuestLayout = () => {
   return (
@@ -36,6 +39,11 @@ function App() {
       <Route path="/verify-email/:token" element={<VerifyEmail />} />
 
       {/* --- GUEST ROUTES --- */}
+      <Route element={<ProtectedRoutes allowedRole="staff" />}>
+        <Route path="/staff/dashboard" element={<StaffDashboard />} />
+        <Route path="/staff/maintenance" element={<StaffMaintenance />} />
+      </Route>
+
       <Route element={<ProtectedRoutes allowedRole="user" />}>
         {/* Use the Layout here to wrap all guest pages with the Cart */}
         <Route element={<GuestLayout />}>
@@ -44,7 +52,8 @@ function App() {
           <Route path="/guests/checkout" element={<Checkout />} />
           {/* ADD THESE TWO ROUTES */}
           <Route path="/guests/success" element={<Success />} />
-          <Route path="/guests/cancel" element={<Cancel />} />`
+          <Route path="/guests/cancel" element={<Cancel />} />
+          <Route path="/guests/settings" element={<ProfileSettings />} />
         </Route>
       </Route>
 

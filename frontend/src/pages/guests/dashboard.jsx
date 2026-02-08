@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom' // 1. Added useSearchParams
 import WebApp from '../../layouts/webApp'
 import { Card, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -7,11 +7,14 @@ import { Users, Bed, Check, Loader2, ShoppingCart } from 'lucide-react'
 import BookingBar from '../../components/web/bookingBar'
 import { addDays, differenceInCalendarDays } from 'date-fns'
 import { roomAPI } from '../../api/roomAPI'
-import { useCart } from '../../context/CartContext' // 1. IMPORT CONTEXT
+import { useCart } from '../../context/CartContext'
 
 function Dashboard() {
   const navigate = useNavigate()
-  const { addToCart, cartItems, totalRooms } = useCart() // 2. GET CART FUNCTIONS
+  const { addToCart, cartItems, totalRooms } = useCart()
+
+  // 2. Search Params Hook
+  const [searchParams] = useSearchParams()
 
   // Search State
   const [date, setDate] = useState({
@@ -19,7 +22,10 @@ function Dashboard() {
     to: addDays(new Date(), 1),
   })
   const [guests, setGuests] = useState({ rooms: 1, adults: 2, children: 0 })
-  const [results, setResults] = useState([])
+
+  const [results, setResults] = useState([]) // Raw API Data
+  const [filteredResults, setFilteredResults] = useState([]) // 3. Filtered Data for Display
+
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
 
@@ -37,6 +43,7 @@ function Dashboard() {
       }
       const { data } = await roomAPI.search(params)
       setResults(data)
+      setFilteredResults(data) // Initially show all results
     } catch (error) {
       console.error(error)
     } finally {
@@ -47,6 +54,28 @@ function Dashboard() {
   useEffect(() => {
     handleSearch()
   }, [])
+
+  // 4. THE FILTER LOGIC (Listens to URL ?search=...)
+  useEffect(() => {
+    const query = searchParams.get('search') // Get query from URL
+
+    if (query && results.length > 0) {
+      const lowerQuery = query.toLowerCase()
+
+      const filtered = results.filter(
+        (room) =>
+          // Filter by Type, Description, or Price
+          room.type.toLowerCase().includes(lowerQuery) ||
+          room.description?.toLowerCase().includes(lowerQuery) ||
+          room.price.toString().includes(lowerQuery),
+      )
+
+      setFilteredResults(filtered)
+    } else {
+      // If no search query, reset to full list
+      setFilteredResults(results)
+    }
+  }, [searchParams, results]) // Run when URL changes or new Data arrives
 
   // Helper
   const nights = differenceInCalendarDays(date.to, date.from) || 1
@@ -87,12 +116,16 @@ function Dashboard() {
             <div className="flex flex-col items-center justify-center py-20 text-orange-500">
               <Loader2 className="w-12 h-12 animate-spin mb-4" />
             </div>
-          ) : results.length === 0 && hasSearched ? (
+          ) : filteredResults.length === 0 && hasSearched ? (
+            // 5. Updated "No Results" message to reflect search
             <div className="text-center py-20 text-gray-500">
-              No rooms available
+              {searchParams.get('search')
+                ? `No rooms match "${searchParams.get('search')}"`
+                : 'No rooms available for these dates'}
             </div>
           ) : (
-            results.map((roomType) => {
+            // 6. Map over filteredResults instead of results
+            filteredResults.map((roomType) => {
               const totalPrice = roomType.price * nights * guests.rooms
 
               return (
@@ -130,7 +163,6 @@ function Dashboard() {
                     </div>
 
                     <div className="mt-8 flex justify-end">
-                      {/* 3. CHANGED BUTTON LOGIC: ADD TO CART instead of NAVIGATE */}
                       <Button
                         onClick={() => {
                           addToCart(roomType, 1, {
@@ -139,7 +171,6 @@ function Dashboard() {
                             adults: guests.adults,
                             children: guests.children,
                           })
-                          // Optional: Add a toast notification here
                         }}
                         className="w-full sm:w-auto text-white bg-orange-500 hover:bg-orange-600 font-bold uppercase tracking-widest px-8 rounded-full shadow-lg"
                       >
@@ -152,7 +183,7 @@ function Dashboard() {
             })
           )}
         </div>
-        {/* 4. STICKY FOOTER - NAVIGATES TO CORRECT URL */}
+        {/* Sticky Footer */}
         {cartItems.length > 0 && (
           <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-2xl p-4 px-8 z-50 flex justify-between items-center animate-in slide-in-from-bottom duration-300">
             <div className="flex items-center gap-4">
@@ -175,7 +206,6 @@ function Dashboard() {
               </div>
             </div>
 
-            {/* THIS BUTTON GOES TO THE CORRECT URL */}
             <Button
               onClick={() => navigate('/guests/checkout')}
               className="bg-orange-600 hover:bg-orange-700 text-white font-bold px-8 py-6 text-lg rounded-full shadow-lg"

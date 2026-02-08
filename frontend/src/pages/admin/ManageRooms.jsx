@@ -38,7 +38,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-// Added CheckCircle2, XCircle, Pencil
 import {
   Plus,
   Trash2,
@@ -46,15 +45,20 @@ import {
   CheckCircle2,
   XCircle,
   Pencil,
+  Search, // Imported Search Icon
+  ChevronLeft, // Imported Left Arrow
+  ChevronRight, // Imported Right Arrow
 } from 'lucide-react'
 import AdminApp from '../../layouts/adminApp'
 
-// --- 1. Zod Schema (Removed Image) ---
 const formSchema = z.object({
   room_no: z.string().min(1, 'Room number is required'),
   room_type: z.string().min(1, 'Room type is required'),
   room_status: z.string().min(1, 'Room status is required'),
 })
+
+// CONFIG: Items per page
+const ITEMS_PER_PAGE = 5
 
 export default function ManageRooms() {
   const [rooms, setRooms] = useState([])
@@ -63,11 +67,13 @@ export default function ManageRooms() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Edit & Flash States
+  // --- NEW STATE FOR SEARCH & PAGINATION ---
+  const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+
   const [editingId, setEditingId] = useState(null)
   const [flashMessage, setFlashMessage] = useState(null)
 
-  // --- 2. Initialize Form ---
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -77,7 +83,6 @@ export default function ManageRooms() {
     },
   })
 
-  // Auto-hide flash message
   useEffect(() => {
     if (flashMessage) {
       const timer = setTimeout(() => setFlashMessage(null), 3000)
@@ -85,7 +90,6 @@ export default function ManageRooms() {
     }
   }, [flashMessage])
 
-  // --- 3. Fetch Data ---
   const fetchData = async () => {
     try {
       setIsLoading(true)
@@ -108,11 +112,33 @@ export default function ManageRooms() {
     fetchData()
   }, [])
 
-  // --- 4. Handle Submit (Create OR Update) ---
+  // --- FILTER & PAGINATION LOGIC ---
+
+  // 1. Filter Rooms based on Search Term
+  const filteredRooms = rooms.filter((room) => {
+    const term = searchTerm.toLowerCase()
+    return (
+      room.room_no.toLowerCase().includes(term) ||
+      room.room_type?.type.toLowerCase().includes(term) ||
+      room.room_status?.status.toLowerCase().includes(term)
+    )
+  })
+
+  // 2. Calculate Pagination
+  const totalPages = Math.ceil(filteredRooms.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const currentRooms = filteredRooms.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE,
+  )
+
+  // Reset to page 1 if search changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
+
   const onSubmit = async (values) => {
     try {
-      // NOTE: We send JSON 'values' directly now (No FormData needed without files)
-
       if (editingId) {
         await roomAPI.updateRoom(editingId, values)
         showFlash('success', 'Room updated successfully!')
@@ -120,7 +146,6 @@ export default function ManageRooms() {
         await roomAPI.createRoom(values)
         showFlash('success', 'Room created successfully!')
       }
-
       handleClose()
       fetchData()
     } catch (error) {
@@ -129,25 +154,19 @@ export default function ManageRooms() {
     }
   }
 
-  // --- 5. Quick Status Update (Directly in Table) ---
   const handleQuickStatusChange = async (roomId, newStatusId) => {
     try {
-      // Optimistic UI Update (Optional, but feels faster)
       setRooms((prev) =>
         prev.map((r) =>
           r._id === roomId ? { ...r, room_status: { _id: newStatusId } } : r,
         ),
       )
-
-      // Call API
       await roomAPI.updateRoom(roomId, { room_status: newStatusId })
       showFlash('success', 'Status updated!')
-
-      // Refresh to ensure data consistency
       fetchData()
     } catch (error) {
       showFlash('error', 'Failed to update status')
-      fetchData() // Revert on error
+      fetchData()
     }
   }
 
@@ -187,7 +206,6 @@ export default function ManageRooms() {
     <>
       <AdminApp>
         <div className="p-8 space-y-6 relative">
-          {/* FLASH MESSAGE TOAST */}
           {flashMessage && (
             <div
               className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg border flex items-center gap-2 animate-in slide-in-from-top-2 duration-300 ${
@@ -205,126 +223,134 @@ export default function ManageRooms() {
             </div>
           )}
 
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <h1 className="text-3xl font-bold tracking-tight">Manage Rooms</h1>
 
-            <Dialog
-              open={isDialogOpen}
-              onOpenChange={(val) => !val && handleClose()}
-            >
-              <DialogTrigger asChild>
-                <Button onClick={() => setIsDialogOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" /> Add Room
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingId ? 'Edit Room' : 'Add New Room'}
-                  </DialogTitle>
-                </DialogHeader>
+            <div className="flex gap-4 w-full md:w-auto">
+              {/* --- SEARCH INPUT --- */}
+              <div className="relative w-full md:w-64">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+                <Input
+                  placeholder="Search rooms..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
 
-                {/* --- Form --- */}
-                <Form {...form}>
-                  <form
-                    onSubmit={form.handleSubmit(onSubmit)}
-                    className="space-y-4"
-                  >
-                    {/* Room Number */}
-                    <FormField
-                      control={form.control}
-                      name="room_no"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Room Number</FormLabel>
-                          <FormControl>
-                            <Input placeholder="101" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+              <Dialog
+                open={isDialogOpen}
+                onOpenChange={(val) => !val && handleClose()}
+              >
+                <DialogTrigger asChild>
+                  <Button onClick={() => setIsDialogOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" /> Add Room
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingId ? 'Edit Room' : 'Add New Room'}
+                    </DialogTitle>
+                  </DialogHeader>
 
-                    {/* Room Type Select */}
-                    <FormField
-                      control={form.control}
-                      name="room_type"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Room Type</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {types.map((t) => (
-                                <SelectItem key={t._id} value={t._id}>
-                                  {t.type} (${t.price})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {/* Room Status Select (In Modal) */}
-                    <FormField
-                      control={form.control}
-                      name="room_status"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Initial Status</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select status" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {statuses.map((s) => (
-                                <SelectItem key={s._id} value={s._id}>
-                                  {s.status}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={form.formState.isSubmitting}
+                  <Form {...form}>
+                    <form
+                      onSubmit={form.handleSubmit(onSubmit)}
+                      className="space-y-4"
                     >
-                      {form.formState.isSubmitting ? (
-                        <Loader2 className="animate-spin" />
-                      ) : editingId ? (
-                        'Update Room'
-                      ) : (
-                        'Create Room'
-                      )}
-                    </Button>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
+                      <FormField
+                        control={form.control}
+                        name="room_no"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Room Number</FormLabel>
+                            <FormControl>
+                              <Input placeholder="101" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="room_type"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Room Type</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select type" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {types.map((t) => (
+                                  <SelectItem key={t._id} value={t._id}>
+                                    {t.type} (${t.price})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="room_status"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Initial Status</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {statuses.map((s) => (
+                                  <SelectItem key={s._id} value={s._id}>
+                                    {s.status}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <Button
+                        type="submit"
+                        className="w-full"
+                        disabled={form.formState.isSubmitting}
+                      >
+                        {form.formState.isSubmitting ? (
+                          <Loader2 className="animate-spin" />
+                        ) : editingId ? (
+                          'Update Room'
+                        ) : (
+                          'Create Room'
+                        )}
+                      </Button>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
 
-          {/* --- Rooms Table --- */}
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -343,8 +369,19 @@ export default function ManageRooms() {
                       Loading...
                     </TableCell>
                   </TableRow>
+                ) : currentRooms.length === 0 ? (
+                  // Handle No Results
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className="text-center h-24 text-gray-500"
+                    >
+                      No rooms found.
+                    </TableCell>
+                  </TableRow>
                 ) : (
-                  rooms.map((room) => (
+                  // --- MAP OVER currentRooms INSTEAD OF rooms ---
+                  currentRooms.map((room) => (
                     <TableRow key={room._id}>
                       <TableCell className="font-medium">
                         {room.room_no}
@@ -352,10 +389,9 @@ export default function ManageRooms() {
                       <TableCell>{room.room_type?.type || 'N/A'}</TableCell>
                       <TableCell>${room.room_type?.price || 0}</TableCell>
 
-                      {/* --- QUICK STATUS UPDATE DROPDOWN --- */}
                       <TableCell>
                         <Select
-                          // Ensure we handle cases where status might be null/populated object
+                          disabled={room.room_status?.status === 'Occupied'}
                           defaultValue={
                             room.room_status?._id || room.room_status
                           }
@@ -364,7 +400,6 @@ export default function ManageRooms() {
                           }
                         >
                           <SelectTrigger className="w-[140px] h-8">
-                            {/* Display current status color-coded nicely */}
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -375,10 +410,15 @@ export default function ManageRooms() {
                             ))}
                           </SelectContent>
                         </Select>
+
+                        {room.room_status?.status === 'Occupied' && (
+                          <span className="text-[10px] text-red-500 block mt-1">
+                            Currently Booked
+                          </span>
+                        )}
                       </TableCell>
 
                       <TableCell className="text-right space-x-2">
-                        {/* Edit Button */}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -387,7 +427,6 @@ export default function ManageRooms() {
                           <Pencil className="h-4 w-4 text-blue-500" />
                         </Button>
 
-                        {/* Delete Button */}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -402,6 +441,35 @@ export default function ManageRooms() {
               </TableBody>
             </Table>
           </div>
+
+          {/* --- PAGINATION CONTROLS --- */}
+          {!isLoading && filteredRooms.length > ITEMS_PER_PAGE && (
+            <div className="flex items-center justify-end space-x-2 py-4">
+              <div className="flex-1 text-sm text-muted-foreground">
+                Page {currentPage} of {totalPages}
+              </div>
+              <div className="space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" /> Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                >
+                  Next <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </AdminApp>
     </>

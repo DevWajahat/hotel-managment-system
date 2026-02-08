@@ -7,6 +7,8 @@ require('dotenv').config()
 const db = require('./config/database')
 const cors = require('cors')
 const bookingRoutes = require('./routes/bookingRoutes')
+const userRoutes = require('./routes/userRoutes')
+const staffRoutes = require('./routes/staffRoutes')
 
 db.dbConnect()
 
@@ -20,6 +22,8 @@ app.use(express.urlencoded({ extended: true }))
 app.use('/userAuth', authRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/bookings', bookingRoutes)
+app.use('/api/users', userRoutes)
+app.use('/api/housekeeping', staffRoutes)
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`)

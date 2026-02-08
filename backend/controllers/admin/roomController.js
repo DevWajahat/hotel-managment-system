@@ -113,7 +113,7 @@ const createRoom = async (req, res) => {
     }
 
     const room = await Room.create({
-      number: room_no,
+      room_no: room_no,
       room_type,
       room_status: room_status, // Ensure this matches your Schema (room_status)
     })
@@ -125,24 +125,11 @@ const createRoom = async (req, res) => {
   }
 }
 
-// --- THE FIX: TIMEZONE-PROOF GET ROOMS ---
-// DEBUG VERSION OF GET ROOMS
-// FINAL CORRECTED GET ROOMS
 const getRooms = async (req, res) => {
   try {
-    // 1. Get the "Occupied" Status Object
-    // FIX: Changed 'name' to 'status' to match your database schema
-    const occupiedStatus = await RoomStatus.findOne({
-      status: 'Occupied',
-    }).lean()
-
-    // 2. Fetch Reservations for Today
-    const today = new Date()
-    // Set explicit window: Start of today (00:00) to End of today (23:59)
     const startOfDay = new Date(today.setHours(0, 0, 0, 0))
     const endOfDay = new Date(today.setHours(23, 59, 59, 999))
 
-    // Find any reservation that overlaps with today
     const activeReservations = await ReservedRoom.find({
       $or: [
         // Case A: Overlaps entire day

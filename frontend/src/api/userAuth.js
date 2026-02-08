@@ -18,4 +18,11 @@ export const authAPI = {
     const response = await axiosClient.get(`/userAuth/verify/${token}`)
     return response.data
   },
+
+  getProfile: () => axiosClient.get('/api/users/profile'),
+
+  updateProfile: (formData) =>
+    axiosClient.put('/api/users/profile', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
 }

@@ -56,6 +56,8 @@ const Login = () => {
         navigate('/guests/dashboard')
       } else if (response.role === 'admin') {
         navigate('/admin/dashboard') // Assuming you have an admin route
+      } else if (response.role === 'staff') {
+        navigate('/staff/dashboard')
       } else {
         // Fallback for unknown roles
         navigate('/')

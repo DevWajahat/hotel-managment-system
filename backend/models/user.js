@@ -9,6 +9,9 @@ const UserSchema = new Schema({
     trim: true,
     maxlength: 255,
   },
+  phone: {
+    type: String,
+  },
   email: {
     type: String,
     required: true,
@@ -20,6 +23,7 @@ const UserSchema = new Schema({
       message: '{VALUE} is not a valid email',
     },
   },
+
   is_verified: { type: Boolean, default: false },
   verification_token: { type: String },
   password: {
@@ -30,6 +34,8 @@ const UserSchema = new Schema({
     type: String,
     default: 'user',
   },
+  avatar: { type: String },
+
   created_at: {
     type: Date,
     default: Date.now,

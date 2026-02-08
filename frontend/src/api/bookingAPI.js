@@ -5,6 +5,8 @@ export const bookingAPI = {
 
   verify: (data) => axiosClient.post('/api/bookings/verify-payment', data),
 
+  getAll: () => axiosClient.get('/api/bookings/all'),
+
   getMyBookings: () => axiosClient.get('/api/bookings/mybookings'),
   cancel: (id) => axiosClient.put(`/api/bookings/${id}/cancel`),
 

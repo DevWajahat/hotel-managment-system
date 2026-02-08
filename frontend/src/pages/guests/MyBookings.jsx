@@ -63,7 +63,7 @@ export default function MyBookings() {
     doc.setFontSize(12)
     doc.text(`INVOICE #${booking._id.slice(-6).toUpperCase()}`, 140, 22)
     // Use Safe Date here too
-    doc.text(`Date: ${safeFormat(booking.createdAt)}`, 140, 28)
+    doc.text(`Date: ${safeFormat(booking.created_at)}`, 140, 28)
     doc.text(
       `Status: ${booking.payment_status?.toUpperCase() || 'N/A'}`,
       140,
@@ -82,7 +82,7 @@ export default function MyBookings() {
 
       return [
         index + 1,
-        `Room ${item.room_id?.number || 'N/A'} - ${item.room_id?.room_type?.type || 'Standard'}`,
+        `Room ${item.room_id?.room_no || 'N/A'} - ${item.room_id?.room_type?.type || 'Standard'}`,
         safeFormat(item.check_in, 'MMM dd'),
         safeFormat(item.check_out, 'MMM dd'),
         `$${item.price_per_night || 0}`,

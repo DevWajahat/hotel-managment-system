@@ -10,6 +10,7 @@ const RoomSchema = new Schema({
   room_status: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'RoomStatus',
+    required: true,
   },
   // image: {
   //   type: String,

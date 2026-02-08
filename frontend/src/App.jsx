@@ -12,10 +12,12 @@ import AdminDashboard from './pages/admin/adminDashboard'
 import ManageRooms from './pages/admin/ManageRooms'
 import ManageRoomTypes from './pages/admin/ManageRoomTypes'
 import ManageStaff from './pages/admin/staff/ManageStaff'
+import ManageStatuses from './pages/admin/ManageStatuses'
 import { CartProvider } from './context/CartContext'
 import Success from './pages/guests/Success'
 import Cancel from './pages/guests/Cancel'
 import MyBookings from './pages/guests/MyBookings'
+import ManageBookings from './pages/admin/ManageBookings'
 
 const GuestLayout = () => {
   return (
@@ -48,6 +50,8 @@ function App() {
 
       {/* --- ADMIN ROUTES --- */}
       <Route element={<ProtectedRoutes allowedRole="admin" />}>
+        <Route path="/admin/room-status" element={<ManageStatuses />} />
+        <Route path="/admin/bookings" element={<ManageBookings />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/rooms/" element={<ManageRooms />} />
         <Route path="/admin/roomTypes/" element={<ManageRoomTypes />} />

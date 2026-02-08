@@ -1,15 +1,13 @@
 const Room = require('../../models/room')
 const RoomType = require('../../models/room_types')
 const RoomStatus = require('../../models/room_status')
+const ReservedRoom = require('../../models/reserved_room')
 
-// --- ROOM TYPES (Now handles Images) ---
+// --- ROOM TYPES (Handles Images) ---
 
 const createRoomType = async (req, res) => {
   try {
     const { type, price, max_adults, max_children, description } = req.body
-
-    // 1. Handle Image Upload for the Type
-    // If a file was uploaded, use its path (URL); otherwise empty string or undefined
     const image = req.file ? req.file.path : ''
 
     const newType = await RoomType.create({
@@ -18,9 +16,8 @@ const createRoomType = async (req, res) => {
       max_adults,
       max_children,
       description,
-      image, // Save the image URL here
+      image,
     })
-
     res.status(201).json(newType)
   } catch (error) {
     res.status(400).json({ message: error.message })
@@ -39,14 +36,9 @@ const getRoomTypes = async (req, res) => {
 const updateRoomType = async (req, res) => {
   try {
     const data = { ...req.body }
-
-    // 2. Handle Image Update
-    // If a new file is uploaded, update the image field.
-    // If not, leave it alone (it won't be in req.file, so we don't overwrite it)
     if (req.file) {
       data.image = req.file.path
     }
-
     const updatedType = await RoomType.findByIdAndUpdate(req.params.id, data, {
       new: true,
     })
@@ -70,7 +62,8 @@ const deleteRoomType = async (req, res) => {
 const createRoomStatus = async (req, res) => {
   try {
     const { status } = req.body
-    const newStatus = await RoomStatus.create({ status })
+    // Ensure you use 'name' or 'status' consistently with your Schema
+    const newStatus = await RoomStatus.create({ name: status })
     res.status(201).json(newStatus)
   } catch (error) {
     res.status(400).json({ message: error.message })
@@ -108,23 +101,21 @@ const deleteRoomStatus = async (req, res) => {
   }
 }
 
-// --- PHYSICAL ROOMS (Cleaned up - No Images) ---
+// --- PHYSICAL ROOMS ---
 
 const createRoom = async (req, res) => {
   try {
-    // We only need these 3 fields now. Image comes from RoomType.
     const { room_no, room_type, room_status } = req.body
 
-    const roomExists = await Room.findOne({ room_no })
+    const roomExists = await Room.findOne({ number: room_no })
     if (roomExists) {
       return res.status(400).json({ message: 'Room number already exists' })
     }
 
     const room = await Room.create({
-      room_no,
+      number: room_no,
       room_type,
-      room_status,
-      // No 'image' field here anymore
+      room_status: room_status, // Ensure this matches your Schema (room_status)
     })
 
     res.status(201).json(room)
@@ -134,28 +125,99 @@ const createRoom = async (req, res) => {
   }
 }
 
+// --- THE FIX: TIMEZONE-PROOF GET ROOMS ---
+// DEBUG VERSION OF GET ROOMS
+// FINAL CORRECTED GET ROOMS
 const getRooms = async (req, res) => {
   try {
-    const rooms = await Room.find({})
-      // 3. IMPORTANT: Populate 'image' from 'room_type'
-      // This tells Mongoose: "Go to RoomType, get the 'type', 'price', AND 'image'"
-      .populate('room_type', 'type price image')
-      .populate('room_status', 'status')
+    // 1. Get the "Occupied" Status Object
+    // FIX: Changed 'name' to 'status' to match your database schema
+    const occupiedStatus = await RoomStatus.findOne({
+      status: 'Occupied',
+    }).lean()
 
-    res.json(rooms)
+    // 2. Fetch Reservations for Today
+    const today = new Date()
+    // Set explicit window: Start of today (00:00) to End of today (23:59)
+    const startOfDay = new Date(today.setHours(0, 0, 0, 0))
+    const endOfDay = new Date(today.setHours(23, 59, 59, 999))
+
+    // Find any reservation that overlaps with today
+    const activeReservations = await ReservedRoom.find({
+      $or: [
+        // Case A: Overlaps entire day
+        { check_in: { $lte: startOfDay }, check_out: { $gte: endOfDay } },
+        // Case B: Starts today
+        { check_in: { $gte: startOfDay, $lte: endOfDay } },
+        // Case C: Ends today
+        { check_out: { $gte: startOfDay, $lte: endOfDay } },
+      ],
+    }).select('room_id')
+
+    const busyRoomIds = activeReservations.map((r) => r.room_id.toString())
+
+    // 3. Get All Rooms
+    const rooms = await Room.find()
+      .populate('room_type')
+      .populate('room_status')
+      .lean()
+
+    // 4. The Magic Swap
+    const dynamicRooms = rooms.map((room) => {
+      const isBusy = busyRoomIds.includes(room._id.toString())
+
+      // Only swap if we actually found the Occupied status document
+      if (isBusy && occupiedStatus) {
+        // SWAP the status object visually
+        // (We map it to 'room_status' because that is what your frontend expects)
+        return { ...room, room_status: occupiedStatus }
+      }
+      return room
+    })
+
+    res.json(dynamicRooms)
   } catch (error) {
+    console.error(error)
     res.status(500).json({ message: error.message })
   }
 }
 
 const updateRoom = async (req, res) => {
   try {
-    const updatedRoom = await Room.findByIdAndUpdate(req.params.id, req.body, {
+    const { id } = req.params
+    const { room_status, room_no, room_type } = req.body
+
+    const updateData = {}
+    if (room_no) updateData.number = room_no
+    if (room_type) updateData.room_type = room_type
+
+    // Update Status Logic
+    if (room_status) {
+      let statusId = room_status
+      const isValidObjectId = (id) => /^[0-9a-fA-F]{24}$/.test(id)
+
+      if (!isValidObjectId(room_status)) {
+        const statusDoc = await RoomStatus.findOne({ name: room_status })
+        if (statusDoc) {
+          statusId = statusDoc._id
+        }
+      }
+      updateData.room_status = statusId
+    }
+
+    const updatedRoom = await Room.findByIdAndUpdate(id, updateData, {
       new: true,
     })
+      .populate('room_status')
+      .populate('room_type')
+
+    if (!updatedRoom) {
+      return res.status(404).json({ message: 'Room not found' })
+    }
+
     res.json(updatedRoom)
   } catch (error) {
-    res.status(400).json({ message: error.message })
+    res.status(500).json({ message: error.message })
   }
 }
 

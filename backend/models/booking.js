@@ -3,7 +3,7 @@ const mongoose = require('mongoose')
 const booking_schema = new mongoose.Schema({
   customer_id: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'user', // Ensure your User model is exported as 'user'
+    ref: 'User', // Ensure your User model is exported as 'user'
     required: true,
   },
   total_amount: {

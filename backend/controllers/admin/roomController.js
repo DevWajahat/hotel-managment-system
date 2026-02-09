@@ -127,16 +127,21 @@ const createRoom = async (req, res) => {
 
 const getRooms = async (req, res) => {
   try {
+    // 1. DEFINE 'today' (This was missing)
+    const today = new Date()
+
+    // 2. DEFINE 'occupiedStatus' (This was also missing)
+    // We need this object to swap the status visually
+    const occupiedStatus = await RoomStatus.findOne({ name: 'Occupied' })
+    // Note: If your DB uses 'status' field instead of 'name', change it to: { status: 'Occupied' }
+
     const startOfDay = new Date(today.setHours(0, 0, 0, 0))
     const endOfDay = new Date(today.setHours(23, 59, 59, 999))
 
     const activeReservations = await ReservedRoom.find({
       $or: [
-        // Case A: Overlaps entire day
         { check_in: { $lte: startOfDay }, check_out: { $gte: endOfDay } },
-        // Case B: Starts today
         { check_in: { $gte: startOfDay, $lte: endOfDay } },
-        // Case C: Ends today
         { check_out: { $gte: startOfDay, $lte: endOfDay } },
       ],
     }).select('room_id')
@@ -153,10 +158,7 @@ const getRooms = async (req, res) => {
     const dynamicRooms = rooms.map((room) => {
       const isBusy = busyRoomIds.includes(room._id.toString())
 
-      // Only swap if we actually found the Occupied status document
       if (isBusy && occupiedStatus) {
-        // SWAP the status object visually
-        // (We map it to 'room_status' because that is what your frontend expects)
         return { ...room, room_status: occupiedStatus }
       }
       return room

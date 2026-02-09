@@ -117,10 +117,10 @@ const Register = () => {
                 Create your account
               </p>
 
-              <Button className="mt-8 w-full gap-3" variant="outline">
-                <GoogleLogo />
-                Continue with Google
-              </Button>
+              {/* <Button className="mt-8 w-full gap-3" variant="outline"> */}
+              {/*   <GoogleLogo /> */}
+              {/*   Continue with Google */}
+              {/* </Button> */}
 
               <div className="my-7 flex w-full items-center justify-center overflow-hidden">
                 <Separator />
